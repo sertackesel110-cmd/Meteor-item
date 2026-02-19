@@ -1,40 +1,59 @@
-name: Build Addon
+plugins {
+    id 'fabric-loom' version '1.9-SNAPSHOT'
+    id 'maven-publish'
+    id 'java'
+}
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+version = project.mod_version
+group = project.maven_group
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+base {
+    archivesName = project.archives_base_name
+}
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+repositories {
+    mavenCentral()
+    maven {
+        name = "Meteor Maven"
+        url = "https://maven.meteordev.org/releases"
+    }
+    maven {
+        name = "Meteor Snapshots"
+        url = "https://maven.meteordev.org/snapshots"
+    }
+    maven {
+        name = "Fabric"
+        url = "https://maven.fabricmc.net/"
+    }
+}
 
-      - name: Validate Gradle Wrapper
-        uses: gradle/actions/wrapper-validation@v3
+dependencies {
+    // Versions are pulled from gradle.properties
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-      - name: Make Gradle Executable
-        run: chmod +x gradlew
+    // Meteor Client dependency
+    modCompileOnly "meteordevelopment:meteor-client:${project.meteor_version}"
+}
 
-      - name: Build with Gradle
-        run: ./gradlew build
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+    it.options.encoding = "UTF-8"
+}
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Meteor-Addon-Jar
-          path: build/libs/*.jar
-          
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
